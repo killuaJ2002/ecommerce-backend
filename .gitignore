@@ -29,3 +29,4 @@ build/
 .vscode/
 
 # Coverage
+/generated/prisma
