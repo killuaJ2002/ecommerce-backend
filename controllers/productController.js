@@ -1,4 +1,4 @@
-import prisma from "../lib/prisma";
+import prisma from "../lib/prisma.js";
 
 const getAllProducts = async (req, res) => {
   try {
@@ -10,7 +10,7 @@ const getAllProducts = async (req, res) => {
   }
 };
 
-const createProduct = async (res, res) => {
+const createProduct = async (req, res) => {
   try {
     const { name, description, price, stock } = req.body;
     const newProduct = await prisma.product.create({
