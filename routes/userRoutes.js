@@ -1,11 +1,16 @@
 import express from "express";
-import { getAllUsers, createUser } from "../controllers/userController.js";
+import {
+  getAllUsers,
+  createUser,
+  loginUser,
+} from "../controllers/userController.js";
 import { validate } from "../middlewares/validate.js";
-import { createUserSchema } from "../schemas/index.js";
+import { createUserSchema, loginUserSchema } from "../schemas/index.js";
 
 const router = express.Router();
 
 router.get("/", getAllUsers);
-router.post("/", validate(createUserSchema), createUser);
+router.post("/signup", validate(createUserSchema), createUser);
+router.post("/login", validate(loginUserSchema), loginUser);
 
 export default router;
