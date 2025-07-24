@@ -5,10 +5,10 @@ import {
 } from "../controllers/productController.js";
 import { validate } from "../middlewares/validate.js";
 import { createProductSchema } from "../schemas/index.js";
-
+import verifyToken from "../middlewares/authMiddleware.js";
 const router = express.Router();
 
-router.get("/", getAllProducts);
-router.post("/", validate(createProductSchema), createProduct);
+router.get("/", verifyToken, getAllProducts);
+router.post("/", verifyToken, validate(createProductSchema), createProduct);
 
 export default router;
