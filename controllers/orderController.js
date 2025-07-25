@@ -63,4 +63,32 @@ const createOrder = async (req, res) => {
   }
 };
 
-export { getAllOrders, createOrder };
+const payOrder = async (req, res) => {
+  const userId = req.user.id;
+  const { orderId } = req.params;
+  if (!orderId)
+    return res.status(400).json({ message: "Order id is required" });
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+    });
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (userId !== order.userId)
+      return res
+        .status(401)
+        .json({ message: "Not authorized to pay for this order" });
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: "PURCHASED",
+      },
+    });
+
+    return res.status(200).json({ message: "Order paid", updatedOrder });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Order failed" });
+  }
+};
+
+export { getAllOrders, createOrder, payOrder };
