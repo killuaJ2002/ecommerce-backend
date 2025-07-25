@@ -21,7 +21,8 @@ const getAllOrders = async (req, res) => {
 
 const createOrder = async (req, res) => {
   try {
-    const { userId, items } = req.body;
+    const userId = req.user.id;
+    const { items } = req.body;
 
     const orderItemsData = await Promise.all(
       items.map(async (item) => {
