@@ -8,7 +8,7 @@ import { createProductSchema } from "../schemas/index.js";
 import verifyToken from "../middlewares/authMiddleware.js";
 const router = express.Router();
 
-router.get("/", verifyToken, getAllProducts);
+router.get("/", getAllProducts);
 router.post("/", verifyToken, validate(createProductSchema), createProduct);
 
 export default router;
