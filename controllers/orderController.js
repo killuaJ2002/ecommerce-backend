@@ -19,6 +19,27 @@ const getAllOrders = async (req, res) => {
   }
 };
 
+const getUserOrders = async (req, res) => {
+  try {
+    const { status } = req.query; // PENDING | PURCHASED | CANCELLED
+    // Building the prisma "where" conditioni
+    const where = status
+      ? { userId: req.user.id, status }
+      : { userId: req.user.id };
+
+    const orders = await prisma.order.findMany({
+      where,
+      include: { items: { include: { product: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return res.status(200).json({ orders });
+  } catch (error) {
+    console.error("Get user orders Error:", error);
+    return res.status(500).json({ message: "Failed to fetch orders" });
+  }
+};
+
 const createOrder = async (req, res) => {
   const userId = req.user.id;
   const { items } = req.body;
