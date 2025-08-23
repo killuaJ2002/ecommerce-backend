@@ -110,4 +110,66 @@ const addToCart = async (req, res) => {
   }
 };
 
-const deleteFromCart = (req, res) => {};
+const deleteFromCart = async (req, res) => {
+  try {
+    const userId = Number(req.user.id);
+    const productId = Number(req.body);
+    if (!userId || !productId) {
+      return res
+        .status(400)
+        .json({ message: "user id and product id required" });
+    }
+    const cart = await prisma.cart.findUnique({
+      where: { userId },
+    });
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
+    const cartId = Number(cart.id);
+    const cartItem = await prisma.cartItem.findMany({
+      where: { cartId, productId },
+    });
+    if (!cartItem) {
+      return res.status(404).json({ message: "Cart item not found" });
+    }
+
+    const deletedItem = await prisma.cartItem.deleteMany({
+      where: { cartId, productId },
+    });
+    return res
+      .status(204)
+      .json({ message: "successfully deleted item from cart" });
+  } catch (error) {
+    console.log("error deleting item from cart", error);
+    return res.status(500).json({ message: "Couldn't delete item from cart" });
+  }
+};
+
+const deleteCart = async (req, res) => {
+  try {
+    const userId = Number(req.user.id);
+    if (!userId) {
+      return res.status(400).json({ message: "user id required" });
+    }
+    const cart = await prisma.cart.findUnique({
+      where: userId,
+    });
+    if (!cart) {
+      return res.status(404).json({ message: "Cart not found" });
+    }
+    const cartId = Number(cart.id);
+
+    // delete cartItems first
+    const deletedItems = await prisma.cartItem.deleteMany({
+      where: { cartId },
+    });
+
+    const deletedCart = await prisma.cart.delete({
+      where: { id: cartId },
+    });
+    return res.status(204).json({ message: "Cart deleted successfully" });
+  } catch (error) {
+    console.log("error deleting cart", error);
+    return res.status(500).json({ message: "Couldn't delete cart" });
+  }
+};
