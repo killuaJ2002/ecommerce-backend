@@ -1,4 +1,4 @@
-import prisma from "../lib/prisma";
+import prisma from "../lib/prisma.js";
 
 const getCart = async (req, res) => {
   try {
@@ -24,87 +24,58 @@ const getCart = async (req, res) => {
 const addToCart = async (req, res) => {
   try {
     const userId = Number(req.user.id);
-    const { items } = req.body;
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: "No cart items provided" });
-    }
 
-    // normalize and validate incoming items
-    const normalized = items
-      .map((it) => ({
-        productId: Number(it.productId),
-        quantity: Number(it.quantity) || 0,
-      }))
-      .filter((it) => it.productId && it.quantity > 0);
+    // expect a single item: { productId, quantity }
+    const productId = Number(req.body.productId);
+    const quantity = Number(req.body.quantity) || 0;
 
-    if (normalized.length === 0) {
-      return res.status(400).json({ message: "No valid cart items provided" });
-    }
-
-    const productIds = normalized.map((item) => item.productId);
-    const products = await prisma.product.findMany({
-      where: { id: { in: productIds } },
-    });
-
-    // build map productId -> product
-    const productMap = new Map(products.map((p) => [p.id, p]));
-
-    // Validate existence and stock, prepare itemsToCreate
-    const itemsToCreate = normalized.map((item) => {
-      const product = productMap.get(item.productId);
-      if (!product) {
-        // return a clear 404 for missing product
-        throw {
-          status: 404,
-          message: `Product with ID ${item.productId} not found`,
-        };
-      }
-      if (product.stock < item.quantity) {
-        throw {
-          status: 400,
-          message: `Insufficient stock for ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}`,
-        };
-      }
-      return {
-        productId: product.id,
-        quantity: item.quantity,
-      };
-    });
-
-    // find existing cart
-    const cart = await prisma.cart.findUnique({ where: { userId } });
-
-    if (!cart) {
-      // create cart and items
-      const newCart = await prisma.cart.create({
-        data: {
-          user: { connect: { id: userId } },
-          items: { createMany: { data: itemsToCreate } },
-        },
-        include: { items: true, user: true },
-      });
+    if (!userId || !productId || quantity <= 0) {
       return res
-        .status(201)
-        .json({ message: "Items added to cart", cart: newCart });
+        .status(400)
+        .json({ message: "productId and positive quantity required" });
     }
 
-    // cart exists -> add items
+    // fetch product and basic stock UX check
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+    });
+    if (!product)
+      return res
+        .status(404)
+        .json({ message: `Product ${productId} not found` });
+    if (product.stock < quantity) {
+      return res.status(400).json({
+        message: `Insufficient stock for ${product.name}. Available: ${product.stock}`,
+      });
+    }
+
+    // get or create cart
+    let cart = await prisma.cart.findUnique({ where: { userId } });
+    if (!cart) {
+      cart = await prisma.cart.create({
+        data: { user: { connect: { id: userId } } },
+      });
+    }
+
+    // add one cart item (NOTE: this will create a new row even if the product already exists in the cart)
     const updatedCart = await prisma.cart.update({
       where: { userId },
       data: {
-        items: { createMany: { data: itemsToCreate } },
+        items: {
+          create: {
+            productId: product.id,
+            quantity,
+          },
+        },
       },
-      include: { items: true, user: true },
+      include: { items: { include: { product: true } }, user: true },
     });
 
     return res
-      .status(200)
-      .json({ message: "Items added to cart", cart: updatedCart });
+      .status(cart ? 200 : 201)
+      .json({ message: "Item added to cart", cart: updatedCart });
   } catch (error) {
     console.error("Error adding to cart", error);
-    if (error && error.status && error.message) {
-      return res.status(error.status).json({ message: error.message });
-    }
     return res.status(500).json({ message: "Failed to add to cart" });
   }
 };
@@ -112,26 +83,30 @@ const addToCart = async (req, res) => {
 const deleteFromCart = async (req, res) => {
   try {
     const userId = Number(req.user.id);
-    const productId = Number(req.body.productId); // <- fixed
+    const cartItemId = Number(req.params.id); // cartItem primary key
 
-    if (!userId || !productId) {
+    if (!userId || !cartItemId) {
       return res
         .status(400)
-        .json({ message: "user id and product id required" });
+        .json({ message: "user id and cartItem id required" });
     }
 
-    const cart = await prisma.cart.findUnique({ where: { userId } });
-    if (!cart) return res.status(404).json({ message: "Cart not found" });
-
-    // use findFirst to get a single item
-    const cartItem = await prisma.cartItem.findFirst({
-      where: { cartId: cart.id, productId },
+    // Load the cartItem with its cart to verify ownership
+    const cartItem = await prisma.cartItem.findUnique({
+      where: { id: cartItemId },
+      include: { cart: true },
     });
-    if (!cartItem)
-      return res.status(404).json({ message: "Cart item not found" });
 
-    // delete (deleteMany is fine too)
-    await prisma.cartItem.delete({ where: { id: cartItem.id } });
+    if (!cartItem) {
+      return res.status(404).json({ message: "Cart item not found" });
+    }
+    if (!cartItem.cart || cartItem.cart.userId !== userId) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to delete this item" });
+    }
+
+    await prisma.cartItem.delete({ where: { id: cartItemId } });
 
     return res
       .status(200)
@@ -161,3 +136,5 @@ const deleteCart = async (req, res) => {
     return res.status(500).json({ message: "Couldn't delete cart" });
   }
 };
+
+export { getCart, addToCart, deleteFromCart, deleteCart };
