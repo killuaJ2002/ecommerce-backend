@@ -24,8 +24,6 @@ const getCart = async (req, res) => {
 const addToCart = async (req, res) => {
   try {
     const userId = Number(req.user.id);
-
-    // expect a single item: { productId, quantity }
     const productId = Number(req.body.productId);
     const quantity = Number(req.body.quantity) || 0;
 
@@ -35,7 +33,7 @@ const addToCart = async (req, res) => {
         .json({ message: "productId and positive quantity required" });
     }
 
-    // fetch product and basic stock UX check
+    // product exists + basic UX stock check
     const product = await prisma.product.findUnique({
       where: { id: productId },
     });
@@ -44,9 +42,11 @@ const addToCart = async (req, res) => {
         .status(404)
         .json({ message: `Product ${productId} not found` });
     if (product.stock < quantity) {
-      return res.status(400).json({
-        message: `Insufficient stock for ${product.name}. Available: ${product.stock}`,
-      });
+      return res
+        .status(400)
+        .json({
+          message: `Insufficient stock for ${product.name}. Available: ${product.stock}`,
+        });
     }
 
     // get or create cart
@@ -57,22 +57,33 @@ const addToCart = async (req, res) => {
       });
     }
 
-    // add one cart item (NOTE: this will create a new row even if the product already exists in the cart)
-    const updatedCart = await prisma.cart.update({
+    // check if item already in cart
+    const existing = await prisma.cartItem.findFirst({
+      where: { cartId: cart.id, productId: product.id },
+    });
+
+    let createdNew = false;
+
+    if (!existing) {
+      await prisma.cartItem.create({
+        data: { cartId: cart.id, productId: product.id, quantity },
+      });
+      createdNew = true;
+    } else {
+      await prisma.cartItem.update({
+        where: { id: existing.id },
+        data: { quantity: existing.quantity + quantity },
+      });
+    }
+
+    // return updated cart (with product details for UI)
+    const updatedCart = await prisma.cart.findUnique({
       where: { userId },
-      data: {
-        items: {
-          create: {
-            productId: product.id,
-            quantity,
-          },
-        },
-      },
       include: { items: { include: { product: true } }, user: true },
     });
 
     return res
-      .status(cart ? 200 : 201)
+      .status(createdNew ? 201 : 200)
       .json({ message: "Item added to cart", cart: updatedCart });
   } catch (error) {
     console.error("Error adding to cart", error);
