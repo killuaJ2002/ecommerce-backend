@@ -38,11 +38,10 @@ export const createProductSchema = z.object({
 
 // Order schema
 export const createOrderSchema = z.object({
-  userId: z.string().min(1, "User ID is required"),
   items: z
     .array(
       z.object({
-        productId: z.string().min(1),
+        productId: z.number().int().positive(),
         quantity: z.number().int().positive("Quantity must be positive"),
       })
     )
