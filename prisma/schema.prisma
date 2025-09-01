@@ -8,12 +8,13 @@ datasource db {
 }
 
 model User {
-  id       Int     @id @default(autoincrement())
-  name     String
-  email    String  @unique
-  password String
-  orders   Order[]
-  Cart     Cart?
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  password  String
+  orders    Order[]
+  Cart      Cart?
+  addresses Address[]
 }
 
 model Product {
@@ -65,4 +66,15 @@ model CartItem {
   quantity  Int
   cart      Cart    @relation(fields: [cartId], references: [id])
   product   Product @relation(fields: [productId], references: [id])
+}
+
+model Address {
+  id      Int    @id @default(autoincrement())
+  street  String
+  city    String
+  state   String
+  zipCode String
+
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id])
 }
