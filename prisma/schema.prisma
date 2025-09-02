@@ -75,6 +75,6 @@ model Address {
   state   String
   zipCode String
 
-  userId Int  @unique
+  userId Int
   user   User @relation(fields: [userId], references: [id])
 }
