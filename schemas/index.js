@@ -47,3 +47,11 @@ export const createOrderSchema = z.object({
     )
     .min(1, "At least one item is required"),
 });
+
+// address schema
+export const createAddressSchema = z.object({
+  street: z.string().min(1, "Street address is required"),
+  city: z.string().min(1, "City is required"),
+  state: z.string().min(1, "State is required"),
+  zipCode: z.string().min(1, "ZIP code is required"),
+});
