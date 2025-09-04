@@ -6,10 +6,7 @@ const getAddresses = async (req, res) => {
       where: { userId },
     });
 
-    if (!addresses || !Array.isArray(addresses) || addresses.length === 0) {
-      return res.status(404).json({ message: "No address found" });
-    }
-    return res.status(200).json({ addresses });
+    return res.status(200).json({ addresses }); // empty array if none found
   } catch (error) {
     console.log("Error fetching addresses", error);
     return res.status(500).json({ message: "Failed to fetch addresses" });
